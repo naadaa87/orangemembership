@@ -1,294 +1,195 @@
-/* ============================================================
-   HMK 오렌지 멤버십 — 고객용 홈페이지
-   ------------------------------------------------------------
-   [배포 전 설정] 오픈 알림 신청 접수 경로
-
-   방법 1 (권장) — Supabase에 바로 적재
-     아래 두 값을 채우면 신청 내용이 membership_leads 표에 쌓입니다.
-     표 만드는 SQL은 같은 폴더의 supabase-setup.sql에 있습니다.
-     anon 키는 공개되는 값입니다. 반드시 SQL의 RLS 설정을 함께
-     적용해서 "쓰기만 되고 읽기는 막힌" 상태로 두어야 합니다.
-
-   방법 2 — Formspree, Google Forms 등 외부 접수 주소 사용
-     NOTIFY_ENDPOINT에 POST 주소를 넣습니다.
-
-   둘 다 비워 두면 전화·매장 접수 안내 문구가 대신 표시됩니다.
-   ============================================================ */
-var SUPABASE_URL = "";       // 예: https://xxxxxxxx.supabase.co
-var SUPABASE_ANON_KEY = "";  // Project Settings > API > anon public
-var NOTIFY_ENDPOINT = "";
-
+/* HMK 오렌지 멤버십 — 공통 스크립트 */
 (function () {
-  "use strict";
+  'use strict';
 
-  var $ = function (sel, ctx) { return (ctx || document).querySelector(sel); };
-  var $$ = function (sel, ctx) {
-    return Array.prototype.slice.call((ctx || document).querySelectorAll(sel));
-  };
-  var won = function (n) { return Math.round(n).toLocaleString("ko-KR"); };
-
-  /* --------------------------------------------------------
-     1. 모바일 내비게이션
-     -------------------------------------------------------- */
-  var toggle = $(".nav-toggle");
-  var links = $(".nav-links");
-
-  if (toggle && links) {
-    toggle.addEventListener("click", function () {
-      var open = links.classList.toggle("is-open");
-      toggle.setAttribute("aria-expanded", open ? "true" : "false");
-    });
-    $$("a", links).forEach(function (a) {
-      a.addEventListener("click", function () {
-        links.classList.remove("is-open");
-        toggle.setAttribute("aria-expanded", "false");
-      });
-    });
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && links.classList.contains("is-open")) {
-        links.classList.remove("is-open");
-        toggle.setAttribute("aria-expanded", "false");
-        toggle.focus();
-      }
+  /* ── 모바일 메뉴 ───────────────────────────── */
+  var burger = document.querySelector('.burger');
+  var mnav = document.querySelector('.mnav');
+  if (burger && mnav) {
+    burger.addEventListener('click', function () {
+      var open = mnav.classList.toggle('on');
+      burger.classList.toggle('on', open);
+      burger.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
   }
 
-  /* --------------------------------------------------------
-     2. 스크롤 등장 효과
-     -------------------------------------------------------- */
-  var targets = $$(".rv");
-  if (targets.length) {
-    if (!("IntersectionObserver" in window)) {
-      targets.forEach(function (el) { el.classList.add("is-in"); });
+  /* ── 헤더 그림자 ───────────────────────────── */
+  var hd = document.querySelector('header');
+  if (hd) {
+    var onScroll = function () { hd.classList.toggle('scrolled', window.scrollY > 8); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
+  /* ── 스크롤 리빌 ───────────────────────────── */
+  var rvs = document.querySelectorAll('.rv');
+  if (rvs.length) {
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (es) {
+        es.forEach(function (e) {
+          if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+        });
+      }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+      rvs.forEach(function (el, i) {
+        el.style.transitionDelay = (Math.min(i % 4, 3) * 70) + 'ms';
+        io.observe(el);
+      });
     } else {
-      var io = new IntersectionObserver(
-        function (entries) {
-          entries.forEach(function (entry) {
-            if (entry.isIntersecting) {
-              entry.target.classList.add("is-in");
-              io.unobserve(entry.target);
-            }
-          });
-        },
-        { rootMargin: "0px 0px -8% 0px", threshold: 0.06 }
-      );
-      targets.forEach(function (el) { io.observe(el); });
+      rvs.forEach(function (el) { el.classList.add('in'); });
     }
   }
 
-  /* --------------------------------------------------------
-     3. 층 스택 — 클릭한 층 강조
-     -------------------------------------------------------- */
-  var floors = $$(".floor");
-  if (floors.length) {
-    floors.forEach(function (f) {
-      f.addEventListener("click", function () {
-        var on = f.classList.contains("is-active");
-        floors.forEach(function (x) { x.classList.remove("is-active"); });
-        if (!on) f.classList.add("is-active");
-      });
+  /* ── 아코디언 ──────────────────────────────── */
+  document.querySelectorAll('.acc-q').forEach(function (q) {
+    q.setAttribute('aria-expanded', 'false');
+    q.addEventListener('click', function () {
+      var item = q.parentElement;
+      var panel = item.querySelector('.acc-a');
+      var open = item.classList.toggle('on');
+      q.setAttribute('aria-expanded', open ? 'true' : 'false');
+      panel.style.maxHeight = open ? panel.scrollHeight + 'px' : 0;
     });
-  }
-
-  /* --------------------------------------------------------
-     4. 회비 회수 계산기
-     -------------------------------------------------------- */
-  var calc = $("#calc");
-  if (calc) {
-    var FEE = 39000;          // 연회비
-    var SAVE_RATE = 0.07;     // 회원가 평균 절감률(대표 품목 기준 목표값)
-    var OD_POINT = 1600;      // 오렌지 데이 1회 추가 적립 (8만원 구매 × 2%)
-    var REVIEW_POINT = 500;   // 후기 1건 적립
-    var DRINK_VALUE = 2000;   // 무인카페 음료 1잔 상당액
-
-    var spendEl = $("#c-spend");
-    var storageEl = $("#c-storage");
-    var state = { od: 4, review: 6, cafe: 0.5 };
-
-    function tierOf(annual) {
-      if (annual >= 3600000) {
-        return { name: "오렌지 프라임", rate: 0.03, storage: 0.15, drinks: 4 };
-      }
-      if (annual >= 1200000) {
-        return { name: "오렌지 플러스", rate: 0.025, storage: 0.08, drinks: 4 };
-      }
-      return { name: "오렌지", rate: 0.02, storage: 0, drinks: 2 };
-    }
-
-    function render() {
-      var monthly = Number(spendEl.value);
-      var storageFee = Number(storageEl.value);
-      var annual = monthly * 12;
-      var tier = tierOf(annual);
-
-      var priceSave = annual * SAVE_RATE;
-      var basePoint = annual * tier.rate;
-      var odPoint = state.od * OD_POINT;
-      var reviewPoint = state.review * REVIEW_POINT;
-      var storageSave = storageFee * 12 * tier.storage;
-      var cafeValue = tier.drinks * 12 * DRINK_VALUE * state.cafe;
-
-      var total = priceSave + basePoint + odPoint + reviewPoint + storageSave + cafeValue;
-      var ratio = total / FEE;
-
-      $("#c-spend-val").textContent = won(monthly) + "원";
-      var stEl = $("#c-storage-val");
-      stEl.textContent = storageFee === 0 ? "이용 안 함" : won(storageFee) + "원";
-      stEl.classList.toggle("as-text", storageFee === 0);
-      $("#c-tier").textContent = tier.name;
-      $("#c-tier-rate").textContent = (tier.rate * 100).toFixed(1) + "%";
-
-      $("#o-total").firstChild.nodeValue = won(total);
-      $("#o-price").textContent = won(priceSave) + "원";
-      $("#o-point").textContent = won(basePoint + odPoint + reviewPoint) + "P";
-      $("#o-storage").textContent =
-        storageSave > 0 ? won(storageSave) + "원" : "—";
-      $("#o-cafe").textContent = cafeValue > 0 ? won(cafeValue) + "원" : "—";
-
-      var verdict;
-      if (total >= FEE) {
-        var months = Math.max(1, Math.ceil((FEE / total) * 12));
-        verdict =
-          "연회비 39,000원의 <b>약 " + ratio.toFixed(1) + "배</b>입니다. " +
-          "지금 이용 패턴이면 가입 후 <b>약 " + months + "개월</b>이면 회비만큼 돌아옵니다. " +
-          "가입 첫날 받는 웰컴 패키지는 여기에 포함되어 있지 않습니다.";
-      } else {
-        verdict =
-          "지금 이용 패턴으로는 연간 <b>" + won(total) + "원</b>이 돌아옵니다. " +
-          "장보기 금액을 조금 올리거나 공유창고를 함께 쓰면 회비를 넘어섭니다. " +
-          "가입 첫날 받는 웰컴 패키지(114,000원 상당)는 여기에 포함되어 있지 않습니다.";
-      }
-      $("#o-verdict").innerHTML = verdict;
-    }
-
-    [spendEl, storageEl].forEach(function (el) {
-      if (el) el.addEventListener("input", render);
-    });
-
-    $$("[data-seg]", calc).forEach(function (group) {
-      var key = group.getAttribute("data-seg");
-      $$("button", group).forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          $$("button", group).forEach(function (b) {
-            b.setAttribute("aria-pressed", "false");
-          });
-          btn.setAttribute("aria-pressed", "true");
-          state[key] = Number(btn.getAttribute("data-value"));
-          render();
-        });
-      });
-    });
-
-    render();
-  }
-
-  /* --------------------------------------------------------
-     5. 오픈 알림 신청 폼
-     -------------------------------------------------------- */
-  var form = $("#notify-form");
-  if (form) {
-    var msg = $("#notify-msg");
-
-    function say(text, kind) {
-      msg.className = "form-msg is-on " + kind;
-      msg.innerHTML = text;
-    }
-
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-
-      var name = $("#nf-name").value.trim();
-      var phone = $("#nf-phone").value.trim();
-      var agree = $("#nf-agree").checked;
-
-      if (!name || !phone) {
-        say("이름과 연락처를 모두 입력해 주세요.", "info");
-        return;
-      }
-      if (!agree) {
-        say("개인정보 수집·이용 동의가 필요합니다.", "info");
-        return;
-      }
-      if (!/^[0-9\-\s]{9,}$/.test(phone)) {
-        say("연락처를 숫자로 다시 확인해 주세요.", "info");
-        return;
-      }
-
-      // 사람 눈에 보이지 않는 칸이 채워져 있으면 자동 프로그램으로 보고 접수하지 않습니다.
-      var trap = $("#nf-company");
-      if (trap && trap.value) {
-        say("신청이 접수되었습니다. 오픈 일정이 확정되면 문자로 안내드리겠습니다.", "ok");
-        form.reset();
-        return;
-      }
-
-      var useSupabase = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
-      if (!useSupabase && !NOTIFY_ENDPOINT) {
-        say(
-          "온라인 접수 채널은 준비 중입니다. 매장 안내 데스크 또는 고객센터로 신청해 주세요.<br>" +
-            "입력하신 내용은 전송되지 않았습니다.",
-          "info"
-        );
-        return;
-      }
-
-      var btn = $("#nf-submit");
-      btn.disabled = true;
-      btn.textContent = "신청하는 중…";
-
-      var req;
-      if (useSupabase) {
-        var interestEl = $("#nf-interest");
-        req = fetch(SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/membership_leads", {
-          method: "POST",
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: "Bearer " + SUPABASE_ANON_KEY,
-            "Content-Type": "application/json",
-            Prefer: "return=minimal"
-          },
-          body: JSON.stringify({
-            name: name,
-            phone: phone.replace(/[^0-9]/g, ""),
-            interest: interestEl ? interestEl.value : null,
-            agreed_at: new Date().toISOString(),
-            source: location.pathname.replace(/^\//, "") || "index.html"
-          })
-        });
-      } else {
-        req = fetch(NOTIFY_ENDPOINT, {
-          method: "POST",
-          headers: { Accept: "application/json" },
-          body: new FormData(form)
-        });
-      }
-
-      req
-        .then(function (res) {
-          if (!res.ok) throw new Error("bad response");
-          form.reset();
-          say(
-            "신청이 접수되었습니다. 오픈 일정이 확정되면 문자로 안내드리겠습니다.",
-            "ok"
-          );
-        })
-        .catch(function () {
-          say(
-            "지금은 접수가 되지 않습니다. 잠시 후 다시 시도하시거나 고객센터로 연락해 주세요.",
-            "info"
-          );
-        })
-        .then(function () {
-          btn.disabled = false;
-          btn.textContent = "오픈 알림 신청";
-        });
-    });
-  }
-
-  /* --------------------------------------------------------
-     6. 현재 연도
-     -------------------------------------------------------- */
-  $$("[data-year]").forEach(function (el) {
-    el.textContent = String(new Date().getFullYear());
   });
+
+  /* ── 회비 회수 계산기 ──────────────────────── */
+  var calc = document.getElementById('calc');
+  if (calc) {
+    var FEE = 39000;
+    var WELCOME = 114000;          // 웰컴 패키지 체감 가치
+    var DISC = 0.07;               // 회원가 평균 인하율
+    var PARTNER = {                // 제휴 카테고리별 연간 절감 추정 (원)
+      car: 80000, move: 50000, interior: 120000,
+      health: 150000, edu: 120000, telecom: 96000
+    };
+    var $ = function (id) { return document.getElementById(id); };
+    var won = function (n) { return Math.round(n).toLocaleString('ko-KR'); };
+
+    function run() {
+      var mShop = +$('cShop').value;                  // 월 장보기 (만원)
+      var mStore = +$('cStore').value;                // 월 창고 이용료 (만원)
+      var yShop = mShop * 10000 * 12;
+      var yStore = mStore * 10000 * 12;
+
+      // 등급 판정
+      var tier = '오렌지', rate = 0.02, cut = 0, cafe = 24000;
+      if (yShop >= 3600000 || mStore >= 15) { tier = '오렌지 프라임'; rate = 0.03; cut = 0.15; cafe = 48000; }
+      else if (yShop >= 1200000 || mStore > 0) { tier = '오렌지 플러스'; rate = 0.025; cut = 0.08; cafe = 48000; }
+
+      var vDisc = yShop * DISC;                       // 회원가 절감
+      var vPoint = yShop * rate;                      // 포인트 적립
+      var vStore = yStore * cut;                      // 창고 요율 인하
+      var vPartner = 0;
+      document.querySelectorAll('.cP:checked').forEach(function (c) { vPartner += PARTNER[c.value] || 0; });
+
+      var total = vDisc + vPoint + vStore + vPartner + WELCOME + cafe;
+      var mult = total / FEE;
+
+      $('rTotal').textContent = won(total) + '원';
+      $('rMult').textContent = '연회비 39,000원의 ' + mult.toFixed(1) + '배';
+      $('rDisc').textContent = won(vDisc) + '원';
+      $('rPoint').textContent = won(vPoint) + 'P';
+      $('rStore').textContent = won(vStore) + '원';
+      $('rPartner').textContent = won(vPartner) + '원';
+      $('rWelcome').textContent = won(WELCOME + cafe) + '원';
+      $('rTier').innerHTML = '예상 등급 <b>' + tier + '</b> · 적립률 <b>' + (rate * 100).toFixed(1) + '%</b>';
+
+      $('oShop').textContent = mShop + '만원';
+      $('oStore').textContent = mStore === 0 ? '이용 안 함' : mStore + '만원';
+    }
+
+    calc.addEventListener('input', run);
+    calc.addEventListener('change', run);
+    run();
+  }
+
+  /* ── 사전 알림 신청 폼 ─────────────────────── */
+  var form = document.getElementById('alertForm');
+  if (form) {
+    var msg = document.getElementById('formMsg');
+    var btn = form.querySelector('button[type=submit]');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (form.querySelector('input[name=_hp]').value) return;   // 허니팟
+
+      var name = form.name_.value.trim();
+      var phone = form.phone.value.replace(/[^0-9]/g, '');
+      var agree = form.agree.checked;
+
+      function show(type, text) {
+        msg.className = 'formmsg ' + type;
+        msg.textContent = text;
+      }
+      if (name.length < 2) { show('err', '이름을 두 글자 이상 입력해 주세요.'); form.name_.focus(); return; }
+      if (phone.length < 10 || phone.length > 11) { show('err', '휴대폰 번호를 다시 확인해 주세요.'); form.phone.focus(); return; }
+      if (!agree) { show('err', '개인정보 수집·이용에 동의해 주셔야 신청이 접수됩니다.'); return; }
+
+      btn.disabled = true;
+      btn.textContent = '접수 중…';
+
+      var payload = {
+        name: name,
+        phone: phone,
+        region: form.region.value || null,
+        interest: Array.prototype.map.call(
+          form.querySelectorAll('input[name=interest]:checked'),
+          function (c) { return c.value; }
+        ).join(',') || null,
+        memo: form.memo.value.trim().slice(0, 1000) || null,
+        marketing: form.marketing.checked,
+        status: 'new',
+        source: 'web'
+      };
+
+      var reset = function () { btn.disabled = false; btn.textContent = '사전 알림 신청하기'; };
+      var done = function () {
+        show('ok', '사전 알림 신청이 접수되었습니다. 오픈 일정이 확정되면 문자로 알려 드리겠습니다.');
+        form.reset();
+        reset();
+      };
+      var fail = function (m) { show('err', m || '일시적인 오류로 접수되지 않았습니다. 잠시 후 다시 시도해 주세요.'); reset(); };
+
+      var cfg = window.HMK_CONFIG || {};
+      if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY) {
+        // 연동 전 미리보기 모드
+        console.warn('[HMK] assets/js/config.js 에 Supabase 정보가 비어 있어 실제 전송을 건너뜁니다.');
+        setTimeout(done, 400);
+        return;
+      }
+
+      fetch(cfg.SUPABASE_URL + '/rest/v1/' + (cfg.TABLE || 'membership_leads'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': cfg.SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + cfg.SUPABASE_ANON_KEY,
+          // 같은 번호로 다시 신청하면 새 행 대신 최신 내용으로 갱신합니다
+          'Prefer': 'return=minimal,resolution=merge-duplicates'
+        },
+        body: JSON.stringify(payload)
+      }).then(function (r) {
+        if (r.ok) { done(); return; }
+        return r.text().then(function (t) {
+          console.error('[HMK] 접수 실패', r.status, t);
+          fail(r.status === 409
+            ? '이미 신청하신 번호입니다. 접수된 내용을 최신으로 갱신했습니다.'
+            : null);
+        });
+      }).catch(function (e) { console.error(e); fail(); });
+    });
+
+    // 휴대폰 자동 하이픈
+    var tel = form.querySelector('input[name=phone]');
+    if (tel) {
+      tel.addEventListener('input', function () {
+        var v = tel.value.replace(/[^0-9]/g, '').slice(0, 11);
+        if (v.length > 7) v = v.slice(0, 3) + '-' + v.slice(3, 7) + '-' + v.slice(7);
+        else if (v.length > 3) v = v.slice(0, 3) + '-' + v.slice(3);
+        tel.value = v;
+      });
+    }
+  }
+
+  /* ── 현재 연도 ─────────────────────────────── */
+  var y = document.getElementById('yr');
+  if (y) y.textContent = new Date().getFullYear();
 })();

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사전 알림 신청 관리 — HMK 오렌지 멤버십</title>
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="theme-color" content="#1C2A4F">
+<link rel="icon" href="assets/img/favicon.png" type="image/png">
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+  body{background:var(--bg-warm)}
+  .adm-top{background:var(--navy); color:#fff; padding:16px 0}
+  .adm-top .wrap{display:flex; align-items:center; gap:14px}
+  .adm-top img{height:20px; filter:brightness(0) invert(1)}
+  .adm-top .t{font-size:15.5px; font-weight:700; padding-left:14px; border-left:1px solid rgba(255,255,255,.22)}
+  .adm-top .who{margin-left:auto; font-size:13.5px; color:#9BA7C2; display:flex; align-items:center; gap:12px}
+  .adm-top button{background:rgba(255,255,255,.12); border:0; color:#fff; padding:8px 14px; border-radius:8px; font-size:13.5px; font-weight:600; cursor:pointer}
+  .adm-top button:hover{background:rgba(255,255,255,.2)}
+  .login{max-width:420px; margin:80px auto; }
+  .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:20px}
+  .toolbar input[type=search], .toolbar select{
+    padding:11px 14px; border:1.5px solid var(--line); border-radius:10px;
+    font-family:inherit; font-size:15px; background:#fff; color:var(--ink);
+  }
+  .toolbar input[type=search]{min-width:220px; flex:1}
+  .toolbar input:focus, .toolbar select:focus{outline:none; border-color:var(--o)}
+  .st{display:inline-block; padding:4px 10px; border-radius:999px; font-size:12.5px; font-weight:700; white-space:nowrap}
+  .st-new{background:#FEF4EC; color:#C9551A}
+  .st-contacted{background:#EAF3EC; color:#2C6B33}
+  .st-hold{background:#F3F1EC; color:#7A6A4F}
+  .st-done{background:#EEF1F7; color:#2A3B66}
+  .st-spam{background:#FDF3F1; color:#A93B36}
+  table.adm{min-width:1080px; font-size:14.5px}
+  table.adm td.nw{white-space:nowrap}
+  table.adm tbody td{text-align:left; padding:12px 14px}
+  table.adm tbody td:first-child{font-weight:600}
+  table.adm select{padding:6px 10px; border:1px solid var(--line); border-radius:7px; font-family:inherit; font-size:13.5px; background:#fff}
+  .tags span{display:inline-block; background:var(--o-50); color:var(--o-d); font-size:11.5px; font-weight:600; padding:3px 8px; border-radius:6px; margin:2px 3px 2px 0}
+  .pager{display:flex; gap:8px; justify-content:center; align-items:center; margin-top:24px; font-size:14.5px}
+  .pager button{padding:9px 16px; border:1.5px solid var(--line); background:#fff; border-radius:9px; font-weight:600; cursor:pointer; color:var(--navy)}
+  .pager button:disabled{opacity:.4; cursor:default}
+  .empty{padding:70px 20px; text-align:center; color:var(--mute)}
+  .memo{max-width:260px; color:var(--body); font-size:13.5px; line-height:1.6}
+  @media (max-width:720px){ .adm-top .t{font-size:14px} .login{margin:40px auto} }
+</style>
+</head>
+<body>
+
+<div class="adm-top">
+  <div class="wrap">
+    <img src="assets/img/logo.png" alt="HMK 홀딩스그룹">
+    <span class="t">사전 알림 신청 관리</span>
+    <div class="who" id="who" hidden><span id="whoEmail"></span><button id="btnOut">로그아웃</button></div>
+  </div>
+</div>
+
+<!-- ── 로그인 ─────────────────────────────── -->
+<section id="viewLogin" class="wrap">
+  <form class="form login" id="loginForm" novalidate>
+    <h1 class="h3" style="margin-bottom:8px">관리자 로그인</h1>
+    <p class="small" style="margin-bottom:26px">총괄기획본부에서 발급받은 계정으로 로그인하십시오.</p>
+    <div class="field">
+      <label for="li-email">이메일</label>
+      <input type="text" id="li-email" name="email" autocomplete="username" inputmode="email">
+    </div>
+    <div class="field">
+      <label for="li-pw">비밀번호</label>
+      <input type="password" id="li-pw" name="password" autocomplete="current-password">
+    </div>
+    <button type="submit" class="btn btn-p" style="width:100%">로그인</button>
+    <div class="formmsg" id="loginMsg" role="status" aria-live="polite"></div>
+    <p class="small" style="margin-top:20px">
+      계정은 Supabase 대시보드 → Authentication → Users 에서 추가합니다.
+      신청자 연락처는 개인정보이므로 조회 권한을 최소한으로 관리해 주십시오.
+    </p>
+  </form>
+</section>
+
+<!-- ── 목록 ───────────────────────────────── -->
+<section id="viewList" class="sec-sm" hidden>
+  <div class="wrap">
+    <div class="statbar" style="margin-bottom:28px">
+      <div><div class="k">전체 신청</div><div class="v" id="sTotal">—</div></div>
+      <div><div class="k">오늘</div><div class="v" id="sToday">—</div></div>
+      <div><div class="k">미처리 (신규)</div><div class="v" id="sNew">—</div></div>
+      <div><div class="k">마케팅 수신 동의</div><div class="v" id="sMkt">—</div></div>
+    </div>
+
+    <div class="toolbar">
+      <input type="search" id="q" placeholder="이름 또는 연락처 검색" autocomplete="off">
+      <select id="fStatus">
+        <option value="">상태 전체</option>
+        <option value="new">신규</option>
+        <option value="contacted">연락완료</option>
+        <option value="hold">보류</option>
+        <option value="done">처리완료</option>
+        <option value="spam">스팸</option>
+      </select>
+      <select id="fRegion"><option value="">지역 전체</option></select>
+      <select id="fInterest">
+        <option value="">관심 서비스 전체</option>
+        <option value="market">오렌지 창고마켓</option>
+        <option value="storage">오렌지 공유창고</option>
+        <option value="live">오렌지 라이브쇼핑</option>
+        <option value="biz">오렌지 비즈</option>
+        <option value="partner">제휴 문의</option>
+      </select>
+      <button class="btn btn-g btn-sm" id="btnCsv" type="button">CSV 내려받기</button>
+      <button class="btn btn-n btn-sm" id="btnReload" type="button">새로고침</button>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="adm">
+        <thead>
+          <tr>
+            <th style="text-align:left">이름</th>
+            <th style="text-align:left">연락처</th>
+            <th style="text-align:left">지역</th>
+            <th style="text-align:left">관심 서비스</th>
+            <th style="text-align:left">문의</th>
+            <th style="text-align:left">마케팅</th>
+            <th style="text-align:left">신청일</th>
+            <th style="text-align:left">상태</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty" id="empty" hidden>표시할 신청 내역이 없습니다.</div>
+    </div>
+
+    <div class="pager">
+      <button id="prev" type="button">이전</button>
+      <span id="pageInfo">—</span>
+      <button id="next" type="button">다음</button>
+    </div>
+    <div class="formmsg" id="listMsg" role="status" aria-live="polite"></div>
+  </div>
+</section>
+
+<script src="assets/js/config.js"></script>
+<script>
+(function () {
+  'use strict';
+  var C = window.HMK_CONFIG || {};
+  var TBL = C.TABLE || 'membership_leads';
+  var PAGE = 25;
+  var $ = function (id) { return document.getElementById(id); };
+  var token = sessionStorage.getItem('hmk_at') || '';
+  var email = sessionStorage.getItem('hmk_em') || '';
+  var page = 0, total = 0, rows = [];
+
+  var LABEL = { market:'창고마켓', storage:'공유창고', live:'라이브쇼핑', biz:'오렌지 비즈', partner:'제휴 문의' };
+  var STATUS = { new:'신규', contacted:'연락완료', hold:'보류', done:'처리완료', spam:'스팸' };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+    });
+  }
+  function msg(el, type, text) { el.className = 'formmsg ' + type; el.textContent = text; }
+  function fmtPhone(p) { return p ? p.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3') : ''; }
+  function fmtDate(s) {
+    var d = new Date(s);
+    var p = function (n) { return ('0' + n).slice(-2); };
+    return d.getFullYear() + '.' + p(d.getMonth() + 1) + '.' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function headers(extra) {
+    var h = { 'apikey': C.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    for (var k in (extra || {})) h[k] = extra[k];
+    return h;
+  }
+
+  /* ── 설정 확인 ── */
+  if (!C.SUPABASE_URL || !C.SUPABASE_ANON_KEY) {
+    msg($('loginMsg'), 'err', 'assets/js/config.js 에 Supabase 주소와 anon 키를 먼저 입력해 주십시오.');
+  }
+
+  /* ── 로그인 ── */
+  $('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target, m = $('loginMsg');
+    var em = f.email.value.trim(), pw = f.password.value;
+    if (!em || !pw) { msg(m, 'err', '이메일과 비밀번호를 입력해 주십시오.'); return; }
+    if (!C.SUPABASE_URL) { msg(m, 'err', 'Supabase 설정이 비어 있습니다.'); return; }
+
+    var b = f.querySelector('button'); b.disabled = true; b.textContent = '확인 중…';
+    fetch(C.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': C.SUPABASE_ANON_KEY },
+      body: JSON.stringify({ email: em, password: pw })
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        b.disabled = false; b.textContent = '로그인';
+        if (!res.ok || !res.j.access_token) {
+          msg(m, 'err', '이메일 또는 비밀번호가 맞지 않습니다.');
+          return;
+        }
+        token = res.j.access_token;
+        email = (res.j.user && res.j.user.email) || em;
+        sessionStorage.setItem('hmk_at', token);
+        sessionStorage.setItem('hmk_em', email);
+        enter();
+      }).catch(function () {
+        b.disabled = false; b.textContent = '로그인';
+        msg(m, 'err', '연결에 실패했습니다. 네트워크 상태를 확인해 주십시오.');
+      });
+  });
+
+  $('btnOut').addEventListener('click', function () {
+    fetch(C.SUPABASE_URL + '/auth/v1/logout', { method: 'POST', headers: headers() }).catch(function () {});
+    sessionStorage.removeItem('hmk_at'); sessionStorage.removeItem('hmk_em');
+    token = ''; location.reload();
+  });
+
+  function enter() {
+    $('viewLogin').hidden = true;
+    $('viewList').hidden = false;
+    $('who').hidden = false;
+    $('whoEmail').textContent = email;
+    loadStats();
+    load();
+  }
+
+  /* ── 통계 ── */
+  function count(qs) {
+    return fetch(C.SUPABASE_URL + '/rest/v1/' + TBL + '?select=id&' + qs,
+      { headers: headers({ 'Prefer': 'count=exact', 'Range': '0-0' }) })
+      .then(function (r) {
+        var cr = r.headers.get('content-range') || '0-0/0';
+        return parseInt(cr.split('/')[1], 10) || 0;
+      });
+  }
+  function loadStats() {
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    Promise.all([
+      count(''),
+      count('created_at=gte.' + encodeURIComponent(today.toISOString())),
+      count('status=eq.new'),
+      count('marketing=is.true')
+    ]).then(function (v) {
+      $('sTotal').textContent = v[0].toLocaleString('ko-KR');
+      $('sToday').textContent = v[1].toLocaleString('ko-KR');
+      $('sNew').textContent = v[2].toLocaleString('ko-KR');
+      $('sMkt').textContent = v[0] ? Math.round(v[3] / v[0] * 100) + '%' : '0%';
+    }).catch(function () {});
+  }
+
+  /* ── 목록 ── */
+  function query() {
+    var p = ['select=*', 'order=created_at.desc'];
+    var q = $('q').value.trim();
+    if (q) p.push('or=(name.ilike.*' + encodeURIComponent(q) + '*,phone.ilike.*' + encodeURIComponent(q.replace(/-/g, '')) + '*)');
+    if ($('fStatus').value) p.push('status=eq.' + $('fStatus').value);
+    if ($('fRegion').value) p.push('region=eq.' + encodeURIComponent($('fRegion').value));
+    if ($('fInterest').value) p.push('interest=ilike.*' + $('fInterest').value + '*');
+    return p.join('&');
+  }
+
+  function load() {
+    var from = page * PAGE, to = from + PAGE - 1;
+    fetch(C.SUPABASE_URL + '/rest/v1/' + TBL + '?' + query(),
+      { headers: headers({ 'Prefer': 'count=exact', 'Range': from + '-' + to }) })
+      .then(function (r) {
+        if (r.status === 401) { sessionStorage.clear(); location.reload(); return; }
+        var cr = r.headers.get('content-range') || '0-0/0';
+        total = parseInt(cr.split('/')[1], 10) || 0;
+        return r.json();
+      })
+      .then(function (data) {
+        rows = data || [];
+        render();
+        fillRegions();
+      })
+      .catch(function () { msg($('listMsg'), 'err', '목록을 불러오지 못했습니다.'); });
+  }
+
+  function render() {
+    var tb = $('rows');
+    tb.innerHTML = rows.map(function (r) {
+      var tags = (r.interest || '').split(',').filter(Boolean)
+        .map(function (k) { return '<span>' + esc(LABEL[k] || k) + '</span>'; }).join('');
+      var opts = Object.keys(STATUS).map(function (k) {
+        return '<option value="' + k + '"' + (r.status === k ? ' selected' : '') + '>' + STATUS[k] + '</option>';
+      }).join('');
+      return '<tr>'
+        + '<td>' + esc(r.name) + '</td>'
+        + '<td class="num nw">' + esc(fmtPhone(r.phone)) + '</td>'
+        + '<td class="nw">' + esc(r.region || '—') + '</td>'
+        + '<td class="tags">' + (tags || '—') + '</td>'
+        + '<td class="memo">' + esc(r.memo || '—') + '</td>'
+        + '<td class="nw">' + (r.marketing ? '<span class="st st-contacted">동의</span>' : '<span class="st st-hold">미동의</span>') + '</td>'
+        + '<td class="num nw" style="font-size:13px">' + esc(fmtDate(r.created_at)) + '</td>'
+        + '<td class="nw"><span class="st st-' + esc(r.status) + '" style="margin-right:6px">' + esc(STATUS[r.status] || r.status) + '</span>'
+        + '<select data-id="' + r.id + '">' + opts + '</select></td>'
+        + '</tr>';
+    }).join('');
+
+    $('empty').hidden = rows.length > 0;
+    var last = Math.max(1, Math.ceil(total / PAGE));
+    $('pageInfo').textContent = total ? (page + 1) + ' / ' + last + ' 페이지 · 전체 ' + total.toLocaleString('ko-KR') + '건' : '0건';
+    $('prev').disabled = page === 0;
+    $('next').disabled = (page + 1) >= last;
+
+    tb.querySelectorAll('select[data-id]').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        var id = sel.dataset.id;
+        sel.disabled = true;
+        fetch(C.SUPABASE_URL + '/rest/v1/' + TBL + '?id=eq.' + id, {
+          method: 'PATCH',
+          headers: headers({ 'Prefer': 'return=minimal' }),
+          body: JSON.stringify({ status: sel.value })
+        }).then(function (r) {
+          sel.disabled = false;
+          if (r.ok) { msg($('listMsg'), 'ok', '상태를 변경했습니다.'); load(); loadStats(); }
+          else msg($('listMsg'), 'err', '상태 변경에 실패했습니다.');
+        }).catch(function () { sel.disabled = false; msg($('listMsg'), 'err', '상태 변경에 실패했습니다.'); });
+      });
+    });
+  }
+
+  function fillRegions() {
+    var sel = $('fRegion');
+    if (sel.options.length > 1) return;
+    ['서울','경기 북부','경기 남부','인천','강원','대전 · 세종 · 충청','대구 · 경북','부산 · 울산 · 경남','광주 · 전라','제주']
+      .forEach(function (r) {
+        var o = document.createElement('option'); o.value = r; o.textContent = r; sel.appendChild(o);
+      });
+  }
+
+  /* ── 필터 · 페이지 ── */
+  var timer;
+  $('q').addEventListener('input', function () {
+    clearTimeout(timer); timer = setTimeout(function () { page = 0; load(); }, 300);
+  });
+  ['fStatus', 'fRegion', 'fInterest'].forEach(function (id) {
+    $(id).addEventListener('change', function () { page = 0; load(); });
+  });
+  $('prev').addEventListener('click', function () { if (page > 0) { page--; load(); window.scrollTo(0, 0); } });
+  $('next').addEventListener('click', function () { page++; load(); window.scrollTo(0, 0); });
+  $('btnReload').addEventListener('click', function () { load(); loadStats(); });
+
+  /* ── CSV ── */
+  $('btnCsv').addEventListener('click', function () {
+    fetch(C.SUPABASE_URL + '/rest/v1/' + TBL + '?' + query(), { headers: headers({ 'Range': '0-9999' }) })
+      .then(function (r) { return r.json(); })
+      .then(function (all) {
+        var head = ['이름', '연락처', '지역', '관심서비스', '문의', '마케팅동의', '상태', '신청일'];
+        var q = function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
+        var lines = [head.map(q).join(',')];
+        all.forEach(function (r) {
+          lines.push([
+            r.name, fmtPhone(r.phone), r.region || '',
+            (r.interest || '').split(',').filter(Boolean).map(function (k) { return LABEL[k] || k; }).join(' / '),
+            r.memo || '', r.marketing ? '동의' : '미동의',
+            STATUS[r.status] || r.status, fmtDate(r.created_at)
+          ].map(q).join(','));
+        });
+        var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = '오렌지멤버십_사전알림신청_' + new Date().toISOString().slice(0, 10) + '.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        msg($('listMsg'), 'ok', all.length.toLocaleString('ko-KR') + '건을 내려받았습니다. 개인정보가 포함된 파일이므로 취급에 주의해 주십시오.');
+      }).catch(function () { msg($('listMsg'), 'err', '내려받기에 실패했습니다.'); });
+  });
+
+  if (token) enter();
+})();
+</script>
+</body>
+</html>

@@ -1,155 +1,181 @@
-# HMK 오렌지 멤버십 — 고객용 홈페이지
+# HMK 오렌지 멤버십 홈페이지
 
-정적 HTML 사이트입니다. 빌드 도구나 서버가 필요 없고, 폴더를 그대로 올리면 동작합니다.
+HMK 홀딩스그룹 오렌지 멤버십 소개 사이트. 정적 HTML/CSS/JS로만 구성되어 있어 빌드 도구 없이 그대로 배포됩니다.
+
+- 저장소 · `naadaa87/orangemembership`
+- 배포 · Cloudflare Pages
+- 기획 · 총괄기획본부
 
 ---
 
-## 1. 파일 구성
+## 폴더 구조
 
 ```
-orange-membership/
+/
 ├── index.html          메인
-├── membership.html     멤버십 소개 · 등급 · 회비 회수 계산기 · 결제/해지 조건
-├── benefits.html       혜택 (장소별 + 등급별 전체표)
+├── benefits.html       혜택 안내
+├── tiers.html          등급 · 회비
 ├── points.html         오렌지 포인트
-├── partners.html       제휴 혜택 13개 분야
-├── lounge.html         라운지 · 셀러클럽 · 오렌지 크루 · 연간 프로그램
-├── biz.html            사업자 회원 (오렌지 비즈)
-├── join.html           가입 안내 · 해지/환불 · 오픈 알림 신청
-├── faq.html            자주 묻는 질문
-├── terms.html          회원 약관 전문 (8장 39조 + 별표 2종)
-├── privacy.html        개인정보 처리방침
-├── 404.html            없는 주소로 들어왔을 때 (Cloudflare Pages가 자동으로 씁니다)
-├── assets/
-│   ├── css/style.css
-│   ├── js/main.js
-│   └── img/            로고 2종 + 파비콘 + 공유 미리보기 이미지
-├── supabase-setup.sql  오픈 알림 접수 표 만드는 SQL
-├── _headers            Cloudflare Pages 캐시·보안 헤더
+├── partners.html       제휴 혜택
+├── community.html      커뮤니티
+├── guide.html          이용 안내 · FAQ
+├── join.html           사전 알림 신청
+├── terms.html          약관 · 개인정보 처리방침
+├── admin.html          사전 알림 신청 관리 (검색 노출 차단)
+├── 404.html
 ├── robots.txt
-└── sitemap.xml
+├── sitemap.xml
+├── _headers            Cloudflare 캐시 · 보안 헤더
+├── build.py            페이지 생성 스크립트 (배포에는 불필요)
+├── supabase/
+│   └── schema.sql      테이블 · 보안정책 SQL
+└── assets/
+    ├── css/style.css
+    ├── js/config.js    ★ Supabase 주소 · 키를 넣는 곳
+    ├── js/main.js
+    └── img/            이미지 19개
 ```
 
 ---
 
-## 2. GitHub 업로드
+## GitHub 업로드
 
-1. GitHub에서 새 저장소를 만듭니다 (예: `hmk-orange-membership`).
-2. `Add file` → `Upload files` 화면에서 **`orange-membership` 폴더 안의 내용물**을 통째로 드래그 앤 드롭합니다.
-   - 파일 선택 버튼을 쓰면 폴더 경로가 사라져 `assets` 구조가 깨집니다. 반드시 드래그 앤 드롭으로 올려주세요.
-   - `index.html`이 저장소 최상단에 있어야 합니다.
-3. `Commit changes`를 누릅니다.
+> **반드시 폴더 안의 내용물을 드래그해서 올리십시오.**
+> `om` 폴더 자체를 올리거나 `choose your files` 버튼으로 개별 선택하면 `assets/` 하위 경로가 평평해지면서 파일이 서로 덮어써집니다.
 
----
-
-## 3. Cloudflare Pages 배포
-
-1. Cloudflare 대시보드 → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**
-2. 위에서 만든 저장소를 선택합니다.
-3. 빌드 설정:
-
-   | 항목 | 값 |
-   |---|---|
-   | Framework preset | `None` |
-   | Build command | *(비워 둠)* |
-   | Build output directory | `/` |
-
-4. **Save and Deploy**를 누르면 1분 안에 `프로젝트명.pages.dev` 주소가 생깁니다.
-5. 도메인을 붙이려면 **Custom domains** 탭에서 연결합니다.
+1. https://github.com/naadaa87/orangemembership 접속
+2. `Add file` → `Upload files`
+3. 탐색기에서 이 폴더를 열고 **안의 항목 전체를 선택해 드래그**
+   (`index.html`, `assets` 폴더, `_headers`, `robots.txt` 등)
+4. `assets/css/style.css` 처럼 경로가 살아 있는지 목록에서 확인
+5. Commit
 
 ---
 
-## 4. 배포 전에 반드시 교체할 항목
-
-아래 값은 임시로 넣어 둔 것입니다. 실제 값으로 바꾼 뒤 공개해 주세요.
-
-| 항목 | 현재 값 | 들어 있는 위치 |
-|---|---|---|
-| 고객센터 번호 | `1600-0000` | 모든 페이지 푸터, `join.html`, `faq.html`, `privacy.html` |
-| 대표 이메일 | `membership@hmkholdings.com` | 푸터, `join.html`, `faq.html` |
-| 개인정보 문의 | `privacy@hmkholdings.com` | `privacy.html` |
-| 개인정보 보호책임자 | 미지정 (안내 문구만 있음) | `privacy.html` 9번 항목 |
-| 약관 시행일 | 부칙에 "확정 시 게시" | `terms.html` 부칙 |
-| 사이트 주소 | `https://example.pages.dev` | `robots.txt`, `sitemap.xml`, 모든 페이지의 `og:url` · `canonical` |
-
-### 오픈 알림 신청 폼 연결
-
-`assets/js/main.js` 맨 위 세 줄 중 필요한 것만 채우면 폼이 실제로 동작합니다.
-
-**방법 1 — Supabase (권장)**
-
-CRM에서 이미 쓰고 계신 Supabase에 그대로 쌓습니다. 추가 비용이 없고, 나중에 CRM 고객 명단으로 옮기기도 쉽습니다.
-
-1. Supabase 대시보드 → SQL Editor → `supabase-setup.sql` 내용을 붙여넣고 Run
-2. Project Settings → API에서 Project URL과 anon public 키를 복사
-3. `assets/js/main.js` 상단에 넣기
-
-```js
-var SUPABASE_URL = "https://xxxxxxxx.supabase.co";
-var SUPABASE_ANON_KEY = "eyJhbGciOi...";
-```
-
-신청 내역은 `membership_leads` 표에 쌓이고, Table Editor에서 바로 보실 수 있습니다.
-
-**방법 2 — Formspree, Google Forms 등**
-
-```js
-var NOTIFY_ENDPOINT = "https://formspree.io/f/xxxxxxxx";
-```
-
-셋 다 비워 두면 "온라인 접수 채널 준비 중, 매장·고객센터로 신청" 안내가 뜨고 데이터는 전송되지 않습니다.
-
-**스팸에 대해 알아두실 것**
-
-폼에는 사람 눈에 보이지 않는 칸을 하나 넣어 두었습니다. 자동 프로그램이 이 칸을 채우면 접수하지 않습니다. 다만 anon 키는 브라우저에 노출되는 값이라, 마음먹은 사람은 홈페이지를 거치지 않고 Supabase 주소로 바로 넣을 수도 있습니다. `supabase-setup.sql`의 RLS 설정과 값 검사가 1차 방어선이고, 실제로 스팸이 들어오기 시작하면 Cloudflare Pages Functions에 접수 경로를 하나 만들어 Turnstile을 붙이는 방식으로 막습니다. 오픈 전 기간에는 지금 구성으로 충분합니다.
-
----
-
-## 5. 카카오톡·문자로 링크를 보낼 때
-
-`assets/img/og-cover.png`가 미리보기 이미지로 뜹니다. 이미지를 바꾸시려면 같은 이름, 같은 크기(1200 × 630)로 덮어쓰시면 됩니다.
-
-한 번 공유된 링크는 카카오가 미리보기를 저장해 둡니다. 이미지를 바꾸고도 예전 것이 계속 보이면 [카카오 디벨로퍼스 도구](https://developers.kakao.com/tool/clear/og)에서 주소를 넣고 캐시를 지워 주세요.
-
----
-
-## 6. 법적 고지 관련 (수정 시 주의)
-
-기획서 PART 9의 법률 검토 결과가 화면에 반영되어 있습니다. 문구를 손볼 때 아래는 유지해 주세요.
-
-- **표시광고법** — `114,000원`이 나오는 모든 자리에는 산정 근거 링크(`membership.html#welcome-basis`)가 붙어 있습니다. 근거 표를 지우면 실증 자료 없이 광고하는 상태가 됩니다.
-- 회원가 `평균 7%`는 대표 품목 기준 목표값이라는 단서가 항상 함께 있어야 합니다.
-- `업계 최저가`, `국내 최초` 같은 표현은 넣지 않습니다.
-- **전자상거래법** — 자동갱신 고지(30일 전·7일 전), 14일 전액 환불, 간편 해지 안내가 `join.html` 상단 박스에 들어 있습니다.
-- **대부업법** — 대부 상품과 금리 관련 표현은 이 사이트 어디에도 넣지 않습니다. 금융·보험 안내는 별도 메뉴·별도 화면·별도 동의로 분리합니다.
-- **자본시장법** — 토큰증권, 지분투자, 배당 관련 표현은 넣지 않습니다.
-- **전자금융거래법** — 오렌지 포인트는 충전·양도·환금 불가라는 설명이 `points.html`과 `terms.html` 제25조에 있습니다.
-
----
-
-## 7. 내용을 고칠 때
-
-각 페이지는 독립된 HTML이라 원하는 파일만 열어 수정하면 됩니다. 다만 아래 내용은 여러 페이지에 걸쳐 있으니 함께 고쳐야 합니다.
-
-| 고치는 내용 | 함께 확인할 파일 |
-|---|---|
-| 연회비 금액 | `index.html`, `membership.html`, `benefits.html`, `join.html`, `faq.html`, `terms.html`, `assets/js/main.js`(`FEE`) |
-| 등급별 적립률·요율 | `membership.html`, `benefits.html`, `terms.html`(별표 1), `assets/js/main.js`(`tierOf`) |
-| 웰컴 패키지 구성 | `index.html`, `membership.html`, `join.html`, `terms.html`(제30조·별표 1) |
-| 상단 메뉴 | 11개 HTML 파일의 `<div class="nav-links">` 블록 |
-| 푸터·고지사항 | 11개 HTML 파일의 `<footer class="site-footer">` 블록 |
-
----
-
-## 8. 디자인 기준
+## Cloudflare Pages 설정
 
 | 항목 | 값 |
 |---|---|
-| 포인트 컬러 | `#E76D27` (오렌지) |
-| 보조 컬러 | `#1C2A4F` (네이비) |
-| 배경 | `#FFFFFF` / `#F1F2F3` (연한 무채색) |
-| 본문 서체 | Pretendard (CDN), 대체 Noto Sans KR |
-| 숫자·라벨 서체 | IBM Plex Mono (Google Fonts) |
-| 기본 글자 크기 | 17px / 행간 1.78 — 고령 회원을 고려해 일반 사이트보다 크게 잡았습니다 |
+| Framework preset | **None** |
+| Build command | *(비워 둠)* |
+| Build output directory | **/** |
+| Root directory | *(비워 둠)* |
 
-`B1` `1F` `2F` `온라인` 층 태그가 사이트 전체에서 "이 혜택을 어디서 쓰는가"를 표시하는 공통 장치입니다. 새 혜택을 추가할 때도 같은 태그를 붙여 주세요.
+`_headers` 파일이 있으면 캐시와 보안 헤더가 자동 적용됩니다.
+
+---
+
+## 배포 후 해야 할 일
+
+### 1. 도메인 치환
+
+현재 코드에는 `https://orangemembership.pages.dev` 가 임시로 들어가 있습니다.
+실제 도메인이 정해지면 아래 네 곳을 모두 바꿔 주십시오.
+
+- 각 HTML의 `<link rel="canonical">`
+- 각 HTML의 `og:url`, `og:image`
+- `robots.txt` 의 Sitemap 주소
+- `sitemap.xml` 의 모든 `<loc>`
+
+`build.py` 상단의 `SITE` 값만 바꾸고 `python3 build.py` 를 다시 돌리면 전부 한 번에 반영됩니다.
+
+### 2. Supabase 연동 (사전 알림 폼 · 관리자 페이지)
+
+**① 프로젝트 생성** — Supabase에서 새 프로젝트를 만듭니다. 리전은 `Northeast Asia (Seoul)` 를 고르십시오.
+
+**② 테이블 생성** — SQL Editor 를 열고 `supabase/schema.sql` 전체를 붙여넣어 실행합니다.
+테이블, 인덱스, 행 수준 보안(RLS) 정책이 한 번에 만들어집니다.
+
+**③ 키 입력** — Project Settings → API 에서 두 값을 복사해 `assets/js/config.js` 에 넣습니다.
+
+```js
+window.HMK_CONFIG = {
+  SUPABASE_URL: 'https://abcdefghijk.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+  TABLE: 'membership_leads'
+};
+```
+
+anon 키는 브라우저에 노출되는 것이 정상입니다. 실제 보안은 RLS가 담당합니다.
+**`service_role` 키는 절대 넣지 마십시오.**
+
+**④ 관리자 계정 추가** — Authentication → Users → Add user 에서 이메일과 비밀번호를 만들고
+`Auto Confirm User` 를 체크합니다. 이어서 Authentication → Providers → Email 에서
+**Enable Sign Ups 를 꺼 두십시오.** 켜져 있으면 누구나 계정을 만들어 신청자 명단을 볼 수 있습니다.
+
+**⑤ 확인** — `join.html` 에서 신청을 넣어 보고 `admin.html` 에서 목록에 뜨는지 확인합니다.
+
+`config.js` 가 비어 있으면 폼은 실제 전송 없이 성공 메시지만 띄우는 미리보기 모드로 동작합니다.
+
+#### 데이터 구조
+
+| 컬럼 | 내용 |
+|---|---|
+| `name` | 이름 (2~40자) |
+| `phone` | 휴대폰 번호, 하이픈 없이 저장. 중복 신청 시 최신 내용으로 갱신 |
+| `region` | 관심 지역 |
+| `interest` | `market,storage,live,biz,partner` 쉼표 구분 |
+| `memo` | 문의 내용 |
+| `marketing` | 마케팅 수신 동의 여부 |
+| `status` | `new` / `contacted` / `hold` / `done` / `spam` |
+
+익명 사용자는 **INSERT만** 가능하고 조회는 차단됩니다. 스팸 방지용 허니팟 필드(`_hp`)도 들어가 있습니다.
+
+### 2-1. 관리자 페이지
+
+`https://<도메인>/admin.html` 로 접속합니다.
+
+- 신청 현황 요약 (전체 · 오늘 · 미처리 · 마케팅 동의율)
+- 이름 · 연락처 검색, 상태 · 지역 · 관심 서비스 필터
+- 상태 변경 (신규 → 연락완료 → 처리완료)
+- CSV 내려받기 (Excel 한글 깨짐 방지 BOM 포함)
+
+`robots.txt` 와 `_headers` 에서 검색 노출을 막아 두었으나 주소를 아는 사람은 접근할 수 있습니다.
+로그인 없이는 아무 데이터도 조회되지 않지만, 계정 관리는 신중히 하십시오.
+CSV에는 신청자 연락처가 그대로 들어가므로 파일 취급에 주의가 필요합니다.
+
+### 3. 개인정보 처리방침 보완
+
+`terms.html` 의 아래 두 항목은 확정 정보를 채워야 합니다.
+
+- 5번 처리 위탁 — 문자 발송·데이터 보관 위탁사 상호와 위탁 업무
+- 9번 개인정보 보호책임자 — 성명, 직위, 연락처
+
+---
+
+## 콘텐츠 수정 방법
+
+모든 페이지는 `build.py` 안에 문자열로 들어 있습니다.
+헤더·푸터·메뉴는 공통 함수에서 생성되므로 한 곳만 고치면 전 페이지에 반영됩니다.
+
+```bash
+python3 build.py
+```
+
+CSS와 JS는 `assets/` 안에서 직접 수정하시면 됩니다.
+
+---
+
+## 디자인 토큰
+
+| 항목 | 값 |
+|---|---|
+| 오렌지 | `#E76D27` |
+| 네이비 | `#1C2A4F` |
+| 본문 폰트 | Pretendard Variable |
+| 숫자 폰트 | IBM Plex Mono |
+| 모서리 | 16px (큰 카드 24px) |
+| 배경 | 흰색 / 웜화이트 `#FAF7F3` |
+
+---
+
+## 표기 관련 주의
+
+사이트에 적힌 회비·혜택·등급 조건은 2027년 1월 시행 목표의 계획안입니다.
+아래 원칙을 지켜 작성했으므로 수정하실 때도 유지해 주십시오.
+
+- 대부업 관련 상품은 멤버십 혜택에 포함하지 않음
+- 토큰증권·지분투자 관련 표현 사용하지 않음
+- "최대" 금액 표기 시 산정 근거 병기
+- 자동갱신·해지·환불 조건을 명시하고 해지 경로를 숨기지 않음
+- 제휴 혜택은 제휴사 사정으로 변경될 수 있음을 고지
